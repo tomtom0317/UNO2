@@ -1,0 +1,40 @@
+(function(){
+"use strict";
+var COLORS=["red","blue","green","yellow"], NAMES={red:"あか",blue:"あお",green:"みどり",yellow:"きいろ",wild:"なんでも"};
+var players=[],deck=[],discard=[],turn=0,direction=1,activeColor="red",busy=false,gameOver=false,drawn=false,unoCalled=false,awaitColor=false,pendingCard=null,timer=null,level="normal",used=0,dayKey=""; 
+function today(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()}
+function loadLimit(){dayKey=today();try{used=parseInt(localStorage.getItem("colorbattle:"+dayKey)||"0",10)||0}catch(e){used=0}updateLimit()}
+function updateLimit(){el("limit").textContent="きょうの のこり "+Math.max(0,3-used)+"かい"}
+function useGame(){if(used>=3)return false;used++;try{localStorage.setItem("colorbattle:"+dayKey,String(used))}catch(e){}updateLimit();return true}
+
+function el(id){return document.getElementById(id)}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function buildDeck(){var d=[],i,n,c;for(i=0;i<4;i++){c=COLORS[i];d.push({color:c,value:"0"});for(n=1;n<=9;n++){d.push({color:c,value:String(n)},{color:c,value:String(n)})}["skip","reverse","draw2"].forEach(function(v){d.push({color:c,value:v},{color:c,value:v})})}for(i=0;i<4;i++){d.push({color:"wild",value:"wild"},{color:"wild",value:"draw4"})}return shuffle(d)}
+function replenish(){if(deck.length===0&&discard.length>1){var top=discard.pop();deck=shuffle(discard);discard=[top]}}
+function take(p,n){for(var i=0;i<n;i++){replenish();if(deck.length)p.hand.push(deck.pop())}}
+function top(){return discard[discard.length-1]}
+function symbol(v){return {skip:"⊘",reverse:"↺",draw2:"+2",wild:"★",draw4:"+4"}[v]||v}
+function cardNode(c,small,playable){var b=document.createElement("button");b.type="button";b.className="card "+c.color+(small?" small":"")+(playable?" playable":"");b.setAttribute("aria-label",NAMES[c.color]+" "+symbol(c.value));var s=document.createElement("span");s.textContent=symbol(c.value);b.appendChild(s);var corner=document.createElement("span");corner.className="corner";corner.textContent=symbol(c.value);b.appendChild(corner);return b}
+function say(s){el("status").textContent=s}
+function next(n){var t=turn;for(var i=0;i<(n||1);i++)t=(t+direction+4)%4;return t}
+function legal(c){var t=top();if(c.color==="wild")return c.value!=="draw4"||!players[turn].hand.some(function(x){return x.color===activeColor});return c.color===activeColor||c.value===t.value}
+function render(){for(var i=1;i<=3;i++){var node=el("cpu"+i),backs=node.querySelector(".backs");backs.innerHTML="";for(var k=0;k<Math.min(players[i].hand.length,7);k++){var z=document.createElement("span");z.className="back";backs.appendChild(z)}node.querySelector(".count").textContent=players[i].hand.length+"まい";node.className="cpu"+(turn===i&&!gameOver?" active":"")}
+el("topcard").innerHTML="";el("topcard").appendChild(cardNode(top(),true,false));el("colorlabel").textContent="いまの いろ："+NAMES[activeColor];el("turninfo").textContent=gameOver?"ゲームおわり":turn===0?"🌟 あなたの ばん！":"⏳ "+players[turn].name+"の ばん";
+var h=el("hand");h.innerHTML="";players[0].hand.forEach(function(c,i){var can=turn===0&&!busy&&!gameOver&&legal(c);var b=cardNode(c,false,can);if(!can)b.className+=" disabled";b.onclick=function(){humanPlay(i)};h.appendChild(b)});
+el("myinfo").textContent="あなたの カード："+players[0].hand.length+"まい";el("draw").disabled=turn!==0||busy||gameOver||drawn;el("pass").style.display=turn===0&&drawn&&!gameOver?"inline-block":"none";el("uno").disabled=gameOver||turn!==0||players[0].hand.length!==1||unoCalled;el("unohelp").textContent=unoCalled?"UNO！ せいこう！":"のこり1まいで UNO！"}
+function setTurn(t){turn=t;drawn=false;unoCalled=false;busy=turn!==0;render();if(turn!==0&&!gameOver){timer=setTimeout(cpuPlay,650)}else if(!gameOver)say("カードを えらんでね。だせないときは ひこう！")}
+function finish(p){gameOver=true;busy=true;render();say(p===0?"🎉 おめでとう！ あなたの かち！":"🏁 "+players[p].name+"の かち！ また あそぼう！");showDialog(p===0?"🎉 やったね！ かったよ！":"🏁 "+players[p].name+"が かったよ！",false)}
+function showDialog(title,colors){el("dialogtitle").textContent=title;el("choices").innerHTML="";el("dialogclose").style.display=colors?"none":"inline-block";el("overlay").className="";if(colors)COLORS.forEach(function(c){var b=document.createElement("button");b.className="choice "+c;b.style.backgroundColor={red:"#ed4148",blue:"#2679e8",green:"#27a65c",yellow:"#edb915"}[c];b.textContent=NAMES[c];b.onclick=function(){el("overlay").className="hidden";awaitColor=false;completePlay(0,pendingCard,c);pendingCard=null};el("choices").appendChild(b)})}
+function completePlay(p,c,chosen){discard.push(c);activeColor=c.color==="wild"?chosen:c.color;var name=players[p].name;var isLast=players[p].hand.length===0;say(name+"が "+symbol(c.value)+" を だした！");if(isLast){render();finish(p);return}
+if(c.value==="reverse"){direction=-direction;if(players.length===2){setTurn(next(2));return}}
+if(c.value==="skip"||c.value==="draw2"||c.value==="draw4"){var victim=next(1);if(c.value==="draw2")take(players[victim],2);if(c.value==="draw4")take(players[victim],4);say(name+"の "+symbol(c.value)+"！ "+players[victim].name+"は おやすみ"+(c.value==="draw2"?" ＋2まい":c.value==="draw4"?" ＋4まい":""));setTurn(next(2));return}
+setTurn(next(1))}
+function humanPlay(i){if(turn!==0||busy||gameOver||awaitColor)return;var hand=players[0].hand,c=hand[i];if(!c||!legal(c)){say("そのカードは まだ だせないよ");return}hand.splice(i,1);if(c.color==="wild"){pendingCard=c;awaitColor=true;showDialog("つぎの いろを えらんでね！",true);render()}else completePlay(0,c,null)}
+function chooseColor(hand){var counts={red:0,blue:0,green:0,yellow:0};hand.forEach(function(c){if(counts[c.color]!==undefined)counts[c.color]++});return COLORS.sort(function(a,b){return counts[b]-counts[a]})[0]}
+function cpuPlay(){if(gameOver||turn===0)return;var p=turn,h=players[p].hand,options=[];for(var i=0;i<h.length;i++)if(legal(h[i]))options.push(i);if(!options.length){take(players[p],1);say(players[p].name+"は 1まい ひいた");h=players[p].hand;if(legal(h[h.length-1]))options=[h.length-1]}if(options.length){if(level==="easy"){options.sort(function(){return Math.random()-.5})}
+else if(level==="hard"){options.sort(function(a,b){function score(z){var c=h[z],remaining=h.filter(function(q){return q!==c});var same=remaining.filter(function(q){return q.color===c.color}).length;var special=(c.value==="skip"||c.value==="draw2"||c.value==="reverse")?3:0;return same*2+special+(c.color==="wild"?-4:0)}return score(b)-score(a)})}
+else{options.sort(function(a,b){var x=h[a],y=h[b];return (x.color==="wild"?1:0)-(y.color==="wild"?1:0)})}
+var ix=options[0],c=h.splice(ix,1)[0],chosen=c.color==="wild"?chooseColor(h):null;completePlay(p,c,chosen)}else{say(players[p].name+"は パスした");setTurn(next(1))}}
+function start(){if(today()!==dayKey)loadLimit();if(!useGame()){gameOver=true;busy=true;el("overlay").className="hidden";say("きょうは 3かい あそんだよ！ また あしたね 🌙");el("draw").disabled=true;el("pass").style.display="none";el("hand").innerHTML="";el("myinfo").textContent="また あした あそぼう！";return}clearTimeout(timer);players=[{name:"あなた",hand:[]},{name:"🤖 あお",hand:[]},{name:"🐼 ぱんだ",hand:[]},{name:"🦊 きつね",hand:[]}];deck=buildDeck();discard=[];turn=0;direction=1;busy=false;gameOver=false;drawn=false;unoCalled=false;awaitColor=false;pendingCard=null;el("overlay").className="hidden";for(var i=0;i<4;i++)take(players[i],7);var idx=deck.findIndex(function(c){return c.color!=="wild"&&/^[0-9]$/.test(c.value)});if(idx<0)idx=0;discard.push(deck.splice(idx,1)[0]);activeColor=top().color;setTurn(0)}
+el("level").onchange=function(){level=this.value};loadLimit();el("restart").onclick=start;el("dialogclose").onclick=function(){el("overlay").className="hidden"};el("draw").onclick=function(){if(turn!==0||busy||drawn)return;take(players[0],1);drawn=true;say("1まい ひいたよ。だせるカードがあれば だしてね！");render()};el("pass").onclick=function(){if(turn===0&&drawn){say("パス！");setTurn(next(1))}};el("uno").onclick=function(){if(turn===0&&players[0].hand.length===1&&!unoCalled){unoCalled=true;say("🎉 UNO！ じょうずに いえたね！");render()}};start();
+})();

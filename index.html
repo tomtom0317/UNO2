@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>カラフルカードバトル</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+<header><h1>🌈 カラフルカードバトル</h1><button id="restart">はじめから</button></header>
+<div id="settings"><label>あいての つよさ <select id="level"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></label><strong id="limit"></strong></div>
+<div id="status" aria-live="polite">ゲームをはじめよう！</div>
+<div id="opponents">
+ <div class="cpu" id="cpu1"><div>🤖 あお</div><div class="backs"></div><b class="count"></b></div>
+ <div class="cpu" id="cpu2"><div>🐼 ぱんだ</div><div class="backs"></div><b class="count"></b></div>
+ <div class="cpu" id="cpu3"><div>🦊 きつね</div><div class="backs"></div><b class="count"></b></div>
+</div>
+<div id="table">
+ <div id="turninfo"></div>
+ <div id="pile"><div class="pile-label">ばに でている カード</div><div id="topcard"></div><div id="colorlabel"></div></div>
+ <div id="drawarea"><button id="draw" class="action">🃏 1まい ひく</button><button id="pass" class="action" style="display:none">パスする</button></div>
+</div>
+<div id="bottom"><div id="myinfo">あなたの カード</div><div id="hand"></div><div id="controls"><button id="uno" class="action uno">UNO！</button><span id="unohelp">のこり1まいで UNO！</span></div></div>
+<div id="overlay" class="hidden"><div class="dialog"><h2 id="dialogtitle">いろを えらんでね</h2><div id="choices"></div><button id="dialogclose" style="display:none">とじる</button></div></div>
+<footer>同じ色・同じ数字・同じマークのカードを出そう！ ワイルドはいつでも出せるよ。</footer>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
